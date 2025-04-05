@@ -175,11 +175,11 @@ class App {
     this.gui = new dat.GUI();
     const blurEffect = this.effects.get('backgroundBlur');
     if (blurEffect) {
-      this.gui.add(blurEffect.pass.uniforms['uBlurAmount'], 'value', 0.0, 10.0).name('Blur Amount');
-      this.gui.add(blurEffect.pass.uniforms['uFocusDistance'], 'value', 0.0, 1.0).name('Focus Distance');
-      this.gui.add(blurEffect.pass.uniforms['uFocusRange'], 'value', 0.1, 0.5).name('Focus Range');
-      this.gui.add(this.cameraOverlay.scale, 'x', window.innerWidth*0.0005, window.innerWidth*0.0015).name('Camara Ancho');
-      this.gui.add(this.cameraOverlay.scale, 'y', window.innerHeight*0.0005, window.innerHeight*0.0015).name('Camara Alto');
+      this.gui.add(blurEffect.pass.uniforms['uBlurAmount'], 'value', 0.0, 10.0).name('Desenfoque');
+      this.gui.add(blurEffect.pass.uniforms['uFocusDistance'], 'value', 0.0, 1.0).name('Distancia');
+      this.gui.add(blurEffect.pass.uniforms['uFocusRange'], 'value', 0.1, 0.5).name('Rango');
+      this.gui.add(this.cameraOverlay.scale, 'x', window.innerWidth*0.0005, window.innerWidth*0.0015).name('Ancho');
+      this.gui.add(this.cameraOverlay.scale, 'y', window.innerHeight*0.0005, window.innerHeight*0.0015).name('Alto');
       // Se ajusta la escala del overlay de cámara al tamaño de la ventana
     }
   }
