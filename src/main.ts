@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+/*import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 // Post-processing imports
 // You can read more about the post-processing effects here:
@@ -263,3 +263,160 @@ const myApp = new App();
 // Example of how to control the effect after initialization:
 // myApp.updateEffectParam('grayscale', 'intensity', 0.5); // 50% grayscale
 // myApp.toggleEffect('grayscale', false); // Turn off grayscale
+*/
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import * as dat from 'dat.gui';
+
+// Importación de shaders
+import vertexShader from './shaders/pp_vertex.glsl';
+import backgroundBlurFragmentShader from './shaders/backgroundBlur.glsl';
+import fragmentShader from './shaders/texture.glsl';
+
+interface ShaderDefinition {
+  uniforms: Record<string, { value: any }>;
+  vertexShader: string;
+  fragmentShader: string;
+}
+
+interface Effect {
+  pass: ShaderPass;
+  name: string;
+  enabled: boolean;
+  params?: Record<string, any>;
+}
+
+const blurShader: ShaderDefinition = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uBlurAmount: { value: 5.0 },
+    uFocusDistance: { value: 0.5 },
+    uFocusRange: { value: 0.2 },
+  },
+  vertexShader,
+  fragmentShader: backgroundBlurFragmentShader,
+};
+
+class App {
+  private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
+  private renderer: THREE.WebGLRenderer;
+  private geometry: THREE.BoxGeometry;
+  private material: THREE.ShaderMaterial;
+  private mesh: THREE.Mesh;
+  private composer: EffectComposer;
+  private effects: Map<string, Effect>;
+
+  constructor() {
+    // Setup scene
+    this.scene = new THREE.Scene();
+
+    // Setup camera
+    this.camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,  
+      1000
+    );
+    this.camera.position.z = 5;
+
+    // Setup renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(this.renderer.domElement);
+
+    const textureLoader = new THREE.TextureLoader();
+    const resolution = new THREE.Vector2(window.innerWidth, window.innerHeight);
+
+    // Add background texture
+    const backgroundTexture = textureLoader.load('static/img/background.jpg');
+    this.scene.background = backgroundTexture;
+
+    // Setup box geometry
+    this.geometry = new THREE.BoxGeometry(1, 1, 1, 32, 32, 32);
+
+    // Setup shader material
+    const boxTexture = textureLoader.load('static/img/box.jpeg');
+    this.material = new THREE.RawShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      transparent: true,
+      uniforms: {
+        uTime: { value: 0.0 },
+        uResolution: { value: resolution },
+        uTexture: { value: boxTexture },
+      },
+      glslVersion: THREE.GLSL3,
+    });
+
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.scene.add(this.mesh);
+
+    // Orbit controls
+    const controls = new OrbitControls(this.camera, this.renderer.domElement);
+    controls.enableDamping = true;
+
+    // Post-processing setup
+    this.setupPostProcessing();
+
+    // Event listener for resize
+    window.addEventListener('resize', this.onWindowResize.bind(this));
+
+    // GUI setup
+    this.setupGUI();
+
+    // Animation
+    this.animate();
+  }
+
+  private setupPostProcessing(): void {
+    this.composer = new EffectComposer(this.renderer);
+    const renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(renderPass);
+
+    this.effects = new Map<string, Effect>();
+    this.addEffect('backgroundBlur', blurShader);
+  }
+
+  private addEffect(name: string, shaderDefinition: ShaderDefinition): void {
+    const material = new THREE.RawShaderMaterial({
+      uniforms: THREE.UniformsUtils.clone(shaderDefinition.uniforms),
+      vertexShader: shaderDefinition.vertexShader,
+      fragmentShader: shaderDefinition.fragmentShader,
+      glslVersion: THREE.GLSL3,
+    });
+    const pass = new ShaderPass(material);
+    this.composer.addPass(pass);
+    this.effects.set(name, { pass, name, enabled: true });
+  }
+
+  private setupGUI(): void {
+    const gui = new dat.GUI();
+    const blurEffect = this.effects.get('backgroundBlur');
+
+    if (blurEffect) {
+      gui.add(blurEffect.pass.uniforms['uBlurAmount'], 'value', 0.0, 10.0).name('Blur Amount');
+      gui.add(blurEffect.pass.uniforms['uFocusDistance'], 'value', 0.0, 1.0).name('Focus Distance');
+      gui.add(blurEffect.pass.uniforms['uFocusRange'], 'value', 0.1, 0.5).name('Focus Range');
+    }
+  }
+
+  private onWindowResize(): void {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.composer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  private animate(): void {
+    requestAnimationFrame(this.animate.bind(this));
+    this.composer.render();
+  }
+}
+
+new App();
+
